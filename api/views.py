@@ -1,17 +1,15 @@
 from rest_framework import generics
-from .models import Janr, Book
-from .serializers import JanrSerializer, BookSerializer
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.permissions import DjangoModelPermissions
+
+from .models import Janr, Book, Comment
+from .serializers import JanrSerializer, BookSerializer, CommentSerializer
+from .permissions import IsCommentOwner
 
 
 class JanrListCreateView(generics.ListCreateAPIView):
     queryset = Janr.objects.all()
     serializer_class = JanrSerializer
-
-    def get_queryset(self):
-        return Janr.objects.all()
-
-    def get_serializer_class(self):
-        return JanrSerializer
 
 
 class JanrDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -20,32 +18,36 @@ class JanrDetailView(generics.RetrieveUpdateDestroyAPIView):
     lookup_field = "id"
     lookup_url_kwarg = "pk"
 
-    def get_queryset(self):
-        return Janr.objects.all()
-
-    def get_serializer_class(self):
-        return JanrSerializer
-
 
 class BookListCreateView(generics.ListCreateAPIView):
-    queryset = Book.objects.all()
+    queryset = Book.objects.select_related("genre").all()
     serializer_class = BookSerializer
-
-    def get_queryset(self):
-        return Book.objects.select_related("genre").all()
-
-    def get_serializer_class(self):
-        return BookSerializer
 
 
 class BookDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Book.objects.all()
+    queryset = Book.objects.select_related("genre").all()
     serializer_class = BookSerializer
     lookup_field = "id"
     lookup_url_kwarg = "pk"
 
-    def get_queryset(self):
-        return Book.objects.select_related("genre").all()
 
-    def get_serializer_class(self):
-        return BookSerializer
+class CommentListCreateView(generics.ListCreateAPIView):
+    queryset = Comment.objects.select_related("book", "user").all()
+    serializer_class = CommentSerializer
+    permission_classes = [
+        IsAuthenticatedOrReadOnly,
+        DjangoModelPermissions
+    ]
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class CommentDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Comment.objects.select_related("book", "user").all()
+    serializer_class = CommentSerializer
+    permission_classes = [
+        IsAuthenticatedOrReadOnly,
+        DjangoModelPermissions,
+        IsCommentOwner
+    ]
